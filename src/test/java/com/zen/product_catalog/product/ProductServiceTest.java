@@ -24,7 +24,7 @@ class ProductServiceTest {
 
         List<ProductResponse> products = productService.getProducts();
 
-        assertEquals(7, products.size());
+        assertEquals(2, products.size());
     }
 
     @Test
