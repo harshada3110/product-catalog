@@ -5,35 +5,73 @@ import com.zen.product_catalog.product.dto.ProductResponse;
 import com.zen.product_catalog.product.exception.ProductNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class ProductServiceTest {
+
+    @Mock
+    private ProductRepository productRepository;
 
     private ProductService productService;
 
     @BeforeEach
     void setUp() {
-        productService = new ProductService();
+        productService = new ProductService(productRepository);
     }
 
     @Test
     void shouldReturnAllProducts() {
 
+        Product product1 = new Product(
+                "Mechanical Keyboard",
+                "Wireless mechanical keyboard",
+                89.99
+        );
+
+        Product product2 = new Product(
+                "Gaming Mouse",
+                "Lightweight wireless mouse",
+                59.99
+        );
+
+        when(productRepository.findAll())
+                .thenReturn(List.of(product1, product2));
+
         List<ProductResponse> products = productService.getProducts();
 
         assertEquals(2, products.size());
+
+        verify(productRepository).findAll();
     }
 
     @Test
     void shouldReturnProductById() {
 
-        ProductResponse product = productService.getProductById(1L);
+        Product product = new Product(
+                "Mechanical Keyboard",
+                "Wireless mechanical keyboard",
+                89.99
+        );
 
-        assertEquals(1L, product.getId());
-        assertEquals("Mechanical Keyboard", product.getName());
+        when(productRepository.findById(1L))
+                .thenReturn(Optional.of(product));
+
+        ProductResponse result = productService.getProductById(1L);
+
+        assertEquals("Mechanical Keyboard", result.getName());
+        assertEquals(89.99, result.getPrice());
+
+        verify(productRepository).findById(1L);
     }
 
     @Test
@@ -45,15 +83,26 @@ class ProductServiceTest {
                 249.99
         );
 
-        ProductResponse product = productService.createProduct(request);
+        when(productRepository.save(any(Product.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertNotNull(product.getId());
-        assertEquals("Monitor", product.getName());
-        assertEquals(249.99, product.getPrice());
+        ProductResponse result = productService.createProduct(request);
+
+        assertEquals("Monitor", result.getName());
+        assertEquals("27 inch monitor", result.getDescription());
+        assertEquals(249.99, result.getPrice());
+
+        verify(productRepository).save(any(Product.class));
     }
 
     @Test
     void shouldUpdateProduct() {
+
+        Product existingProduct = new Product(
+                "Old Keyboard",
+                "Old description",
+                50.00
+        );
 
         ProductRequest request = new ProductRequest(
                 "Updated Keyboard",
@@ -61,30 +110,52 @@ class ProductServiceTest {
                 99.99
         );
 
-        ProductResponse product = productService.updateProduct(1L, request);
+        when(productRepository.findById(1L))
+                .thenReturn(Optional.of(existingProduct));
 
-        assertEquals("Updated Keyboard", product.getName());
-        assertEquals("Updated description", product.getDescription());
-        assertEquals(99.99, product.getPrice());
+        when(productRepository.save(any(Product.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ProductResponse result =
+                productService.updateProduct(1L, request);
+
+        assertEquals("Updated Keyboard", result.getName());
+        assertEquals("Updated description", result.getDescription());
+        assertEquals(99.99, result.getPrice());
+
+        verify(productRepository).findById(1L);
+        verify(productRepository).save(existingProduct);
     }
 
     @Test
     void shouldDeleteProduct() {
 
+        Product product = new Product(
+                "Mechanical Keyboard",
+                "Wireless mechanical keyboard",
+                89.99
+        );
+
+        when(productRepository.findById(1L))
+                .thenReturn(Optional.of(product));
+
         productService.deleteProduct(1L);
 
-        assertThrows(
-                ProductNotFoundException.class,
-                () -> productService.getProductById(1L)
-        );
+        verify(productRepository).findById(1L);
+        verify(productRepository).delete(product);
     }
 
     @Test
     void shouldThrowExceptionWhenProductDoesNotExist() {
 
+        when(productRepository.findById(999L))
+                .thenReturn(Optional.empty());
+
         assertThrows(
                 ProductNotFoundException.class,
                 () -> productService.getProductById(999L)
         );
+
+        verify(productRepository).findById(999L);
     }
 }

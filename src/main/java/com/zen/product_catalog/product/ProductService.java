@@ -1,61 +1,45 @@
 package com.zen.product_catalog.product;
+
 import com.zen.product_catalog.product.dto.ProductRequest;
 import com.zen.product_catalog.product.dto.ProductResponse;
 import com.zen.product_catalog.product.exception.ProductNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class ProductService {
 
-    private final List<Product> products = new ArrayList<>();
-    private long nextId = 1;
+    private final ProductRepository productRepository;
 
-    public ProductService() {
-        products.add(
-                new Product(
-                        nextId++,
-                        "Mechanical Keyboard",
-                        "Wireless mechanical keyboard",
-                        89.99
-                )
-        );
-
-        products.add(
-                new Product(
-                        nextId++,
-                        "Gaming Mouse",
-                        "Lightweight wireless mouse",
-                        59.99
-                )
-        );
+    public ProductService(ProductRepository productRepository) {
+        this.productRepository = productRepository;
     }
 
     public List<ProductResponse> getProducts() {
-        return products.stream()
+        return productRepository.findAll()
+                .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     public ProductResponse getProductById(Long id) {
         Product product = findProductById(id);
+
         return toResponse(product);
     }
 
     public ProductResponse createProduct(ProductRequest request) {
 
         Product product = new Product(
-                nextId++,
                 request.getName(),
                 request.getDescription(),
                 request.getPrice()
         );
 
-        products.add(product);
+        Product savedProduct = productRepository.save(product);
 
-        return toResponse(product);
+        return toResponse(savedProduct);
     }
 
     public ProductResponse updateProduct(Long id, ProductRequest request) {
@@ -66,20 +50,20 @@ public class ProductService {
         product.setDescription(request.getDescription());
         product.setPrice(request.getPrice());
 
-        return toResponse(product);
+        Product updatedProduct = productRepository.save(product);
+
+        return toResponse(updatedProduct);
     }
 
     public void deleteProduct(Long id) {
 
         Product product = findProductById(id);
 
-        products.remove(product);
+        productRepository.delete(product);
     }
 
     private Product findProductById(Long id) {
-        return products.stream()
-                .filter(product -> product.getId().equals(id))
-                .findFirst()
+        return productRepository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException(id));
     }
 
